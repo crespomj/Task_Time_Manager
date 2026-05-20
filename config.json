@@ -1,0 +1,5 @@
+{
+    "sectores": ["Kine CR", "TO CR", "Kine CRI", "Proyecto AMBLE", "Proyecto Simulador", "Laboratorio de Marcha"],
+    "tiempos_minutos": [15, 30, 45, 60, 90, 120],
+    "tareas": ["Reunión", "Desarrollo", "Adaptación", "Programación", "Atención a paciente", "Investigación"]
+}
