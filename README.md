@@ -16,16 +16,16 @@ Una aplicación web ágil y adaptada para dispositivos móviles, diseñada para 
 
 ## 🛠️ Tecnologías Utilizadas
 
-*   **Lenguaje:** Python 3.11[cite: 1]
-*   **Frontend y Dashboard:** Streamlit[cite: 1]
-*   **Manipulación de Datos:** Pandas[cite: 1]
-*   **Base de Datos:** Google Sheets API (`st-gsheets-connection`)[cite: 1]
+*   **Lenguaje:** Python 3.11
+*   **Frontend y Dashboard:** Streamlit
+*   **Manipulación de Datos:** Pandas
+*   **Base de Datos:** Google Sheets API (`st-gsheets-connection`)
 
 ## ⚙️ Estructura del Proyecto
 
 *   `app.py`: Script principal que contiene la lógica de la interfaz y la conexión a la base de datos.
 *   `config.json`: Archivo de configuración centralizado para modificar rápidamente los botones, categorías y opciones de tiempo sin alterar el código Python.
-*   `environment.yml`: Archivo de entorno para la gestión de dependencias con Conda.[cite: 1]
+*   `environment.yml`: Archivo de entorno para la gestión de dependencias con Conda.
 
 ## 💻 Instalación y Uso Local
 
