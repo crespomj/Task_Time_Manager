@@ -1,8 +1,8 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 import json
 from datetime import datetime
+from streamlit_gsheets import GSheetsConnection
 
 # --- CONFIGURACIÓN E INICIALIZACIÓN ---
 st.set_page_config(page_title="Gestión de Tiempos", layout="wide")
@@ -14,23 +14,12 @@ def cargar_config():
 
 config = cargar_config()
 
-def init_db():
-    conn = sqlite3.connect('tiempos.db')
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS registros (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            fecha DATE,
-            hora TIME,
-            sector TEXT,
-            tiempo_minutos INTEGER,
-            tarea TEXT
-        )
-    ''')
-    conn.commit()
-    conn.close()
+# Establecer la conexión con Google Sheets
+# Nota: Streamlit buscará automáticamente los datos en st.secrets
+conn = st.connection("gsheets", type=GSheetsConnection)
 
-init_db()
+# Nombre exacto de la pestaña en tu archivo de Google Sheets
+NOMBRE_HOJA = "Hoja 1" 
 
 # --- INTERFAZ DE USUARIO ---
 st.title("⏱️ Registro de Actividades")
@@ -51,26 +40,51 @@ with tab_ingreso:
         tarea_sel = st.selectbox("Tipo de Tarea", config["tareas"])
         
     if st.button("Guardar Registro", use_container_width=True, type="primary"):
-        conn = sqlite3.connect('tiempos.db')
-        c = conn.cursor()
+        # 1. Leer los datos actuales de la planilla
+        try:
+            df_actual = conn.read(worksheet=NOMBRE_HOJA, usecols=list(range(5)), ttl=0)
+        except Exception as e:
+            st.error(f"Error al leer la planilla. Verifica que exista y esté compartida. Detalle: {e}")
+            df_actual = pd.DataFrame(columns=["fecha", "hora", "sector", "tiempo_minutos", "tarea"])
+
+        # 2. Crear el nuevo registro
         ahora = datetime.now()
-        c.execute("INSERT INTO registros (fecha, hora, sector, tiempo_minutos, tarea) VALUES (?, ?, ?, ?, ?)",
-                  (ahora.strftime("%Y-%m-%d"), ahora.strftime("%H:%M:%S"), sector_sel, tiempo_sel, tarea_sel))
-        conn.commit()
-        conn.close()
+        nuevo_registro = pd.DataFrame([{
+            "fecha": ahora.strftime("%Y-%m-%d"),
+            "hora": ahora.strftime("%H:%M:%S"),
+            "sector": sector_sel,
+            "tiempo_minutos": tiempo_sel,
+            "tarea": tarea_sel
+        }])
+
+        # 3. Concatenar y actualizar
+        # Si la hoja estaba vacía, usamos el nuevo registro como base
+        if df_actual.empty or df_actual.columns[0] != "fecha":
+            df_actualizado = nuevo_registro
+        else:
+            df_actualizado = pd.concat([df_actual, nuevo_registro], ignore_index=True)
+            
+        conn.update(worksheet=NOMBRE_HOJA, data=df_actualizado)
+        
         st.success(f"✅ Registrado: {tiempo_sel} min en {tarea_sel} para {sector_sel}")
 
 with tab_tablero:
     st.subheader("Métricas Generales")
     
-    # Cargar datos
-    conn = sqlite3.connect('tiempos.db')
-    df = pd.read_sql_query("SELECT * FROM registros", conn)
-    conn.close()
+    # Cargar datos desde Google Sheets (ttl=5 actualiza la caché cada 5 segundos)
+    try:
+        df = conn.read(worksheet=NOMBRE_HOJA, usecols=list(range(5)), ttl=5)
+    except Exception:
+        df = pd.DataFrame() # DataFrame vacío si hay error
     
-    if not df.empty:
-        # Convertir fecha a datetime
+    # Validar que existan datos y tengan la estructura correcta
+    if not df.empty and "fecha" in df.columns:
+        # Limpiar datos (por si hay filas vacías leídas del Sheets)
+        df = df.dropna(subset=['fecha'])
+        
+        # Convertir tipos de datos
         df['fecha'] = pd.to_datetime(df['fecha'])
+        df['tiempo_minutos'] = pd.to_numeric(df['tiempo_minutos'])
         df['horas'] = df['tiempo_minutos'] / 60.0
         
         # Filtros del tablero
@@ -95,4 +109,4 @@ with tab_tablero:
             df_tarea = df_filtrado.groupby('tarea')['horas'].sum().reset_index()
             st.bar_chart(df_tarea, x='tarea', y='horas')
     else:
-        st.info("Aún no hay registros en la base de datos.")
+        st.info("Aún no hay registros en la base de datos o la hoja no tiene el formato esperado.")

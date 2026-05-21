@@ -9,3 +9,4 @@ dependencies:
   - pip
   - pip:
     - python-telegram-bot
+    - st-gsheets-connection
